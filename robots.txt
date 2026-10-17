@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://chooomi.github.io/tolk/sitemap.xml

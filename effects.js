@@ -1,0 +1,15 @@
+// Interaction effects stay independent of navigation, forms and WebGL.
+export function installEffects(root,{entrance=true}={}){
+ const reduce=matchMedia('(prefers-reduced-motion: reduce)');
+ const fine=matchMedia('(hover: hover) and (pointer: fine)');
+ const animations=new Set(),pulses=new Set();let frame=0,pending=null,active=null;
+ const surfaces='.button,.project-index a,.service-list article,.process li,.brief-panel';
+ root.querySelectorAll(surfaces).forEach(el=>el.classList.add('pointer-surface'));
+ function clearPointer(){if(active){active.classList.remove('pointer-active');active.style.removeProperty('--spot-x');active.style.removeProperty('--spot-y');active=null;}}
+ function move(event){if(reduce.matches||!fine.matches)return;pending={element:event.target.closest(surfaces),x:event.clientX,y:event.clientY};if(frame)return;frame=requestAnimationFrame(()=>{frame=0;if(!pending?.element||!root.contains(pending.element)){clearPointer();return;}const {element,x,y}=pending;if(active!==element)clearPointer();active=element;const rect=element.getBoundingClientRect();element.style.setProperty('--spot-x',(x-rect.left)+'px');element.style.setProperty('--spot-y',(y-rect.top)+'px');element.classList.add('pointer-active');});}
+ function pulse(event){if(reduce.matches)return;const button=event.target.closest('.button');if(!button||!root.contains(button))return;const rect=button.getBoundingClientRect();const size=Math.max(rect.width,rect.height)*2;const ring=document.createElement('span');ring.className='tap-pulse';ring.setAttribute('aria-hidden','true');ring.style.width=ring.style.height=size+'px';ring.style.left=((event.detail?event.clientX-rect.left:rect.width/2)-size/2)+'px';ring.style.top=((event.detail?event.clientY-rect.top:rect.height/2)-size/2)+'px';button.append(ring);pulses.add(ring);ring.addEventListener('animationend',()=>{ring.remove();pulses.delete(ring);},{once:true});}
+ if(entrance&&!reduce.matches){const targets=[['.hero-lead h1',0,18],['.bigmark',110,30],['.hero-bottom',260,14],['.case-title',0,18],['.case-hero>h2',90,12]];for(const [selector,delay,y]of targets){const el=root.querySelector(selector);if(!el)continue;const animation=el.animate([{opacity:0,transform:`translateY(${y}px)`,filter:'blur(5px)'},{opacity:1,transform:'translateY(0)',filter:'blur(0)'}],{duration:850,delay,easing:'cubic-bezier(.16,1,.3,1)',fill:'backwards'});animations.add(animation);animation.onfinish=()=>animations.delete(animation);}}
+ function preference(){if(reduce.matches){clearPointer();for(const a of animations)a.cancel();animations.clear();for(const p of pulses)p.remove();pulses.clear();}}
+ root.addEventListener('pointermove',move,{passive:true});root.addEventListener('pointerleave',clearPointer);root.addEventListener('click',pulse);reduce.addEventListener('change',preference);
+ return ()=>{cancelAnimationFrame(frame);clearPointer();for(const a of animations)a.cancel();for(const p of pulses)p.remove();root.removeEventListener('pointermove',move);root.removeEventListener('pointerleave',clearPointer);root.removeEventListener('click',pulse);reduce.removeEventListener('change',preference);};
+}
